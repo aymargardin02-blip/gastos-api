@@ -19,6 +19,22 @@ model Usuario {
   contrasenaHash String
   rol            Rol      @default(USUARIO)
   creadoEn       DateTime @default(now())
+  categorias     Categoria[]
 
   @@map("usuarios")
+}
+
+enum TipoMovimiento {
+  INGRESO
+  GASTO
+}
+
+model Categoria {
+  id        Int            @id @default(autoincrement())
+  nombre    String
+  tipo      TipoMovimiento
+  usuarioId Int
+  usuario   Usuario        @relation(fields: [usuarioId], references: [id])
+
+  @@map("categorias")
 }
