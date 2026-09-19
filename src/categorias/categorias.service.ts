@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CrearCategoriaDto } from './dto/crear-categoria.dto.js';
+import { ActualizarCategoriaDto } from './dto/actualizar-categoria.dto.js';
 
 @Injectable()
 export class CategoriasService {
@@ -18,6 +19,19 @@ export class CategoriasService {
   listar(usuarioId: number) {
     return this.prisma.categoria.findMany({
       where: { usuarioId },
+    });
+  }
+
+  actualizar(usuarioId: number, id: number, datos: ActualizarCategoriaDto) {
+    return this.prisma.categoria.update({
+      where: { id, usuarioId },
+      data: datos,
+    });
+  }
+
+  eliminar(usuarioId: number, id: number) {
+    return this.prisma.categoria.delete({
+      where: { id, usuarioId },
     });
   }
 }
