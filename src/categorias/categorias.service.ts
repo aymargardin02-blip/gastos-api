@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CrearCategoriaDto } from './dto/crear-categoria.dto.js';
 import { ActualizarCategoriaDto } from './dto/actualizar-categoria.dto.js';
+import { Prisma } from '../generated/prisma/client.js';
 
 @Injectable()
 export class CategoriasService {
@@ -22,16 +23,30 @@ export class CategoriasService {
     });
   }
 
-  actualizar(usuarioId: number, id: number, datos: ActualizarCategoriaDto) {
-    return this.prisma.categoria.update({
-      where: { id, usuarioId },
-      data: datos,
-    });
+  async actualizar(usuarioId: number, id: number, datos: ActualizarCategoriaDto) {
+    try {
+      return await this.prisma.categoria.update({
+        where: { id, usuarioId },
+        data: datos,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException('Categoría no encontrada');
+      }
+      throw error;
+    }
   }
 
-  eliminar(usuarioId: number, id: number) {
-    return this.prisma.categoria.delete({
-      where: { id, usuarioId },
-    });
+  async eliminar(usuarioId: number, id: number) {
+    try {
+      return await this.prisma.categoria.delete({
+        where: { id, usuarioId },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException('Categoría no encontrada');
+      }
+      throw error;
+    }
   }
 }
