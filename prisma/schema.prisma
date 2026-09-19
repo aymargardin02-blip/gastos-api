@@ -20,6 +20,7 @@ model Usuario {
   rol            Rol      @default(USUARIO)
   creadoEn       DateTime @default(now())
   categorias     Categoria[]
+  transacciones Transaccion[]
 
   @@map("usuarios")
 }
@@ -35,6 +36,21 @@ model Categoria {
   tipo      TipoMovimiento
   usuarioId Int
   usuario   Usuario        @relation(fields: [usuarioId], references: [id])
+  transacciones Transaccion[]
 
   @@map("categorias")
+}
+
+model Transaccion {
+  id          Int            @id @default(autoincrement())
+  tipo        TipoMovimiento
+  monto       Decimal        @db.Decimal(12, 2)
+  descripcion String?
+  fecha       DateTime
+  categoriaId Int
+  categoria   Categoria      @relation(fields: [categoriaId], references: [id])
+  usuarioId   Int
+  usuario     Usuario        @relation(fields: [usuarioId], references: [id])
+
+  @@map("transacciones")
 }
