@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -13,6 +14,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { TransaccionesService } from './transacciones.service.js';
 import { CrearTransaccionDto } from './dto/crear-transaccion.dto.js';
+import { ActualizarTransaccionDto } from './dto/actualizar-transaccion.dto.js';
 import { FiltrarTransaccionesDto } from './dto/filtrar-transacciones.dto.js';
 
 @Controller('transacciones')
@@ -42,6 +44,15 @@ export class TransaccionesController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.transaccionesService.buscarUno(req.user.id, id);
+  }
+
+  @Patch(':id')
+  actualizar(
+    @Req() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() datos: ActualizarTransaccionDto,
+  ) {
+    return this.transaccionesService.actualizar(req.user.id, id, datos);
   }
 
   @Delete(':id')

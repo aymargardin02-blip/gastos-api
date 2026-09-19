@@ -1,27 +1,37 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CrearTransaccionDto } from './dto/crear-transaccion.dto.js';
-import { Prisma } from '../generated/prisma/client.js';
+import { ActualizarTransaccionDto } from './dto/actualizar-transaccion.dto.js';
 import { FiltrarTransaccionesDto } from './dto/filtrar-transacciones.dto.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { TipoMovimiento } from '../generated/prisma/enums.js';
 
 @Injectable()
 export class TransaccionesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async crear(usuarioId: number, datos: CrearTransaccionDto) {
+  private async validarCategoria(
+    usuarioId: number,
+    categoriaId: number,
+    tipo: TipoMovimiento,
+  ) {
     const categoria = await this.prisma.categoria.findFirst({
-      where: { id: datos.categoriaId, usuarioId },
+      where: { id: categoriaId, usuarioId },
     });
 
     if (!categoria) {
       throw new NotFoundException('Categoría no encontrada');
     }
 
-    if (categoria.tipo !== datos.tipo) {
+    if (categoria.tipo !== tipo) {
       throw new BadRequestException(
         'El tipo de la transacción no coincide con el de la categoría',
       );
     }
+  }
+
+  async crear(usuarioId: number, datos: CrearTransaccionDto) {
+    await this.validarCategoria(usuarioId, datos.categoriaId, datos.tipo);
 
     return this.prisma.transaccion.create({
       data: {
@@ -75,6 +85,24 @@ export class TransaccionesService {
     }
 
     return transaccion;
+  }
+
+  async actualizar(usuarioId: number, id: number, datos: ActualizarTransaccionDto) {
+    const actual = await this.buscarUno(usuarioId, id);
+
+    if (datos.tipo !== undefined || datos.categoriaId !== undefined) {
+      const tipoFinal = datos.tipo ?? actual.tipo;
+      const categoriaIdFinal = datos.categoriaId ?? actual.categoriaId;
+      await this.validarCategoria(usuarioId, categoriaIdFinal, tipoFinal);
+    }
+
+    return this.prisma.transaccion.update({
+      where: { id, usuarioId },
+      data: {
+        ...datos,
+        fecha: datos.fecha ? new Date(datos.fecha) : undefined,
+      },
+    });
   }
 
   async eliminar(usuarioId: number, id: number) {
