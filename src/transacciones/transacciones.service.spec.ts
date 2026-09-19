@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TransaccionesService } from './transacciones.service.js';
 import { TipoMovimiento } from '../generated/prisma/enums.js';
+import { Prisma } from '../generated/prisma/client.js';
 
 describe('TransaccionesService', () => {
   let service: TransaccionesService;
@@ -15,13 +16,14 @@ describe('TransaccionesService', () => {
         create: vi.fn(),
         findFirst: vi.fn(),
         update: vi.fn(),
+        delete: vi.fn(),
       },
     };
     service = new TransaccionesService(prismaMock);
   });
 
   describe('crear', () => {
-    it('lanza NotFoundException si la categoría no existe o no es del usuario', async () => {
+    it('lanza NotFoundException si la categoria no existe o no es del usuario', async () => {
       prismaMock.categoria.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -34,7 +36,7 @@ describe('TransaccionesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('lanza BadRequestException si el tipo no coincide con el de la categoría', async () => {
+    it('lanza BadRequestException si el tipo no coincide con el de la categoria', async () => {
       prismaMock.categoria.findFirst.mockResolvedValue({
         id: 2,
         tipo: TipoMovimiento.INGRESO,
@@ -51,7 +53,7 @@ describe('TransaccionesService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('crea la transacción cuando la categoría existe y el tipo coincide', async () => {
+    it('crea la transaccion cuando la categoria existe y el tipo coincide', async () => {
       prismaMock.categoria.findFirst.mockResolvedValue({
         id: 2,
         tipo: TipoMovimiento.GASTO,
@@ -91,7 +93,7 @@ describe('TransaccionesService', () => {
   });
 
   describe('actualizar', () => {
-    it('lanza NotFoundException si la transacción no existe o no es del usuario', async () => {
+    it('lanza NotFoundException si la transaccion no existe o no es del usuario', async () => {
       prismaMock.transaccion.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -101,7 +103,7 @@ describe('TransaccionesService', () => {
       expect(prismaMock.transaccion.update).not.toHaveBeenCalled();
     });
 
-    it('actualiza solo el monto sin revalidar la categoría', async () => {
+    it('actualiza solo el monto sin revalidar la categoria', async () => {
       prismaMock.transaccion.findFirst.mockResolvedValue({
         id: 5,
         tipo: TipoMovimiento.GASTO,
@@ -126,6 +128,63 @@ describe('TransaccionesService', () => {
         where: { id: 5, usuarioId: 1 },
         data: { monto: 15, fecha: undefined },
       });
+    });
+
+    it('revalida la categoria cuando el PATCH cambia el tipo', async () => {
+      prismaMock.transaccion.findFirst.mockResolvedValue({
+        id: 5,
+        tipo: TipoMovimiento.GASTO,
+        monto: 20,
+        categoriaId: 2,
+        usuarioId: 1,
+      });
+      prismaMock.categoria.findFirst.mockResolvedValue({
+        id: 3,
+        tipo: TipoMovimiento.INGRESO,
+        usuarioId: 1,
+      });
+      prismaMock.transaccion.update.mockResolvedValue({});
+
+      await service.actualizar(1, 5, {
+        tipo: TipoMovimiento.INGRESO,
+        categoriaId: 3,
+      });
+
+      expect(prismaMock.categoria.findFirst).toHaveBeenCalledWith({
+        where: { id: 3, usuarioId: 1 },
+      });
+    });
+  });
+
+  describe('eliminar', () => {
+    it('elimina y devuelve la transaccion cuando existe', async () => {
+      const transaccionBorrada = {
+        id: 5,
+        tipo: TipoMovimiento.GASTO,
+        monto: 20,
+        categoriaId: 2,
+        usuarioId: 1,
+      };
+      prismaMock.transaccion.delete.mockResolvedValue(transaccionBorrada);
+
+      const resultado = await service.eliminar(1, 5);
+
+      expect(resultado).toEqual(transaccionBorrada);
+      expect(prismaMock.transaccion.delete).toHaveBeenCalledWith({
+        where: { id: 5, usuarioId: 1 },
+      });
+    });
+
+    it('lanza NotFoundException si Prisma no encuentra el registro (P2025)', async () => {
+      const errorPrisma = new Prisma.PrismaClientKnownRequestError(
+        'Registro no encontrado',
+        { code: 'P2025', clientVersion: '7.10.0' },
+      );
+      prismaMock.transaccion.delete.mockRejectedValue(errorPrisma);
+
+      await expect(service.eliminar(1, 99)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
