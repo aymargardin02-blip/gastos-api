@@ -5,7 +5,7 @@ export class CrearTransaccionDto {
   @IsEnum(TipoMovimiento)
   tipo: TipoMovimiento;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   monto: number;
 
