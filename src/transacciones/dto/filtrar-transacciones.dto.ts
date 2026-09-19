@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsPositive, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsPositive, Max, Min } from 'class-validator';
 import { TipoMovimiento } from '../../generated/prisma/enums.js';
 
 export class FiltrarTransaccionesDto {
@@ -30,6 +30,7 @@ export class FiltrarTransaccionesDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   @Type(() => Number)
   limite?: number = 20;
 }

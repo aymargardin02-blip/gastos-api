@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CrearTransaccionDto } from './dto/crear-transaccion.dto.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { FiltrarTransaccionesDto } from './dto/filtrar-transacciones.dto.js';
 
 @Injectable()
 export class TransaccionesService {
@@ -28,5 +30,38 @@ export class TransaccionesService {
         usuarioId,
       },
     });
+  }
+
+  async listar(usuarioId: number, filtros: FiltrarTransaccionesDto) {
+    const { tipo, categoriaId, desde, hasta, pagina = 1, limite = 20 } = filtros;
+
+    const fecha: Prisma.DateTimeFilter = {};
+    if (desde) fecha.gte = new Date(desde);
+    if (hasta) fecha.lte = new Date(hasta);
+
+    const where: Prisma.TransaccionWhereInput = {
+      usuarioId,
+      tipo,
+      categoriaId,
+      fecha: desde || hasta ? fecha : undefined,
+    };
+
+    const [datos, total] = await Promise.all([
+      this.prisma.transaccion.findMany({
+        where,
+        orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
+        skip: (pagina - 1) * limite,
+        take: limite,
+      }),
+      this.prisma.transaccion.count({ where }),
+    ]);
+
+    return {
+      datos,
+      total,
+      pagina,
+      limite,
+      totalPaginas: Math.ceil(total / limite),
+    };
   }
 }
