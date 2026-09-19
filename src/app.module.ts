@@ -15,6 +15,7 @@ import { TransaccionesModule } from './transacciones/transacciones.module.js';
     PrismaModule,
     CategoriasModule,
     AuthModule,
+    TransaccionesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
