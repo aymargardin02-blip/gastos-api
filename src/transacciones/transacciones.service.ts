@@ -64,4 +64,29 @@ export class TransaccionesService {
       totalPaginas: Math.ceil(total / limite),
     };
   }
+
+  async buscarUno(usuarioId: number, id: number) {
+    const transaccion = await this.prisma.transaccion.findFirst({
+      where: { id, usuarioId },
+    });
+
+    if (!transaccion) {
+      throw new NotFoundException('Transacción no encontrada');
+    }
+
+    return transaccion;
+  }
+
+  async eliminar(usuarioId: number, id: number) {
+    try {
+      return await this.prisma.transaccion.delete({
+        where: { id, usuarioId },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException('Transacción no encontrada');
+      }
+      throw error;
+    }
+  }
 }
