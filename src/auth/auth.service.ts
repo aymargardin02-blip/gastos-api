@@ -44,7 +44,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
-    const contrasenaValida = await argon2.verify(usuario.contrasenaHash, datos.contrasena);
+    let contrasenaValida: boolean;
+    try {
+      contrasenaValida = await argon2.verify(usuario.contrasenaHash, datos.contrasena);
+    } catch {
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
 
     if (!contrasenaValida) {
       throw new UnauthorizedException('Credenciales incorrectas');
