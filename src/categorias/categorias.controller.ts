@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -11,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CategoriasService } from './categorias.service.js';
 import { CrearCategoriaDto } from './dto/crear-categoria.dto.js';
@@ -20,6 +21,8 @@ interface RequestConUsuario extends Request {
   user: { id: number; email: string; rol: string };
 }
 
+@ApiTags('categorias')
+@ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
 @Controller('categorias')
 export class CategoriasController {

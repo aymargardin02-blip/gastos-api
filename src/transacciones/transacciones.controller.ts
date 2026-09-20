@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -12,11 +12,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TransaccionesService } from './transacciones.service.js';
 import { CrearTransaccionDto } from './dto/crear-transaccion.dto.js';
 import { ActualizarTransaccionDto } from './dto/actualizar-transaccion.dto.js';
 import { FiltrarTransaccionesDto } from './dto/filtrar-transacciones.dto.js';
 
+@ApiTags('transacciones')
+@ApiBearerAuth()
 @Controller('transacciones')
 @UseGuards(AuthGuard('jwt'))
 export class TransaccionesController {
@@ -56,10 +59,7 @@ export class TransaccionesController {
   }
 
   @Delete(':id')
-  eliminar(
-    @Req() req: { user: { id: number } },
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  eliminar(@Req() req: { user: { id: number } }, @Param('id', ParseIntPipe) id: number) {
     return this.transaccionesService.eliminar(req.user.id, id);
   }
 }
