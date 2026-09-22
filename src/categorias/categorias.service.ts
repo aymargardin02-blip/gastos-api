@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CrearCategoriaDto } from './dto/crear-categoria.dto.js';
 import { ActualizarCategoriaDto } from './dto/actualizar-categoria.dto.js';
@@ -24,6 +24,18 @@ export class CategoriasService {
   }
 
   async actualizar(usuarioId: number, id: number, datos: ActualizarCategoriaDto) {
+    if (datos.tipo !== undefined) {
+      const incoherentes = await this.prisma.transaccion.count({
+        where: { categoriaId: id, usuarioId, tipo: { not: datos.tipo } },
+      });
+
+      if (incoherentes > 0) {
+        throw new ConflictException(
+          'No puedes cambiar el tipo: la categoría tiene transacciones de otro tipo',
+        );
+      }
+    }
+
     try {
       return await this.prisma.categoria.update({
         where: { id, usuarioId },
@@ -38,6 +50,18 @@ export class CategoriasService {
   }
 
   async eliminar(usuarioId: number, id: number) {
+    const transacciones = await this.prisma.transaccion.count({
+      where: { categoriaId: id, usuarioId },
+    });
+
+    if (transacciones > 0) {
+      throw new ConflictException(
+        `No puedes eliminar la categoría porque tiene ${transacciones} ${
+          transacciones === 1 ? 'transacción' : 'transacciones'
+        }`,
+      );
+    }
+
     try {
       return await this.prisma.categoria.delete({
         where: { id, usuarioId },
