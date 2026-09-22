@@ -7,7 +7,16 @@ import { AppModule } from './app.module.js';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
-  app.enableCors();
+
+  const origenesPermitidos = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origen) => origen.trim())
+    .filter(Boolean);
+
+  app.enableCors({
+    origin: origenesPermitidos.length > 0 ? origenesPermitidos : true,
+  });
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()
@@ -16,6 +25,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
+
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
