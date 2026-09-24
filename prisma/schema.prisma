@@ -22,6 +22,7 @@ model Usuario {
   categorias     Categoria[]
   transacciones Transaccion[]
   tiposCuenta    TipoCuenta[]
+  cuentas        Cuenta[]
 
   @@map("usuarios")
 }
@@ -73,8 +74,39 @@ model TipoCuenta {
 
   usuarioId      Int
   usuario        Usuario               @relation(fields: [usuarioId], references: [id])
-
+  cuentas        Cuenta[]  
+   
   @@map("tipos_cuenta")
 }
 
+
+model Cuenta {
+  id             Int         @id @default(autoincrement())
+  nombre         String
+  archivada      Boolean     @default(false)
+
+  // Solo si el comportamiento de su tipo es TARJETA_CREDITO
+  limiteCredito  Decimal?    @db.Decimal(12, 2)
+  diaCorte       Int?
+  diaPago        Int?
+
+  // Comunes a TARJETA_CREDITO y DEUDA
+  tasaInteres    Decimal?    @db.Decimal(5, 2)
+  tieneInteres   Boolean?
+
+  // Solo si el comportamiento de su tipo es DEUDA
+  montoOriginal  Decimal?    @db.Decimal(12, 2)
+
+  cuentaPagoId   Int?
+  cuentaPago     Cuenta?     @relation("pagoDe", fields: [cuentaPagoId], references: [id])
+  pagadaPor      Cuenta[]    @relation("pagoDe")
+
+  tipoCuentaId   Int
+  tipoCuenta     TipoCuenta  @relation(fields: [tipoCuentaId], references: [id])
+
+  usuarioId      Int
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id])
+
+  @@map("cuentas")
+}
 
