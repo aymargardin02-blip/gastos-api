@@ -30,6 +30,7 @@ model Usuario {
 enum TipoMovimiento {
   INGRESO
   GASTO
+  TRANSFERENCIA
 }
 
 model Categoria {
@@ -53,7 +54,15 @@ model Transaccion {
   categoria   Categoria      @relation(fields: [categoriaId], references: [id])
   usuarioId   Int
   usuario     Usuario        @relation(fields: [usuarioId], references: [id])
- 
+  
+  cuentaId        Int
+  cuenta          Cuenta            @relation("cuentaOrigen", fields: [cuentaId], references: [id])
+
+  cuentaDestinoId Int?
+  cuentaDestino   Cuenta?           @relation("cuentaDestino", fields: [cuentaDestinoId], references: [id])
+
+  componenteDeuda ComponenteDeuda?
+
   @@map("transacciones")
 
 }
@@ -75,7 +84,7 @@ model TipoCuenta {
   usuarioId      Int
   usuario        Usuario               @relation(fields: [usuarioId], references: [id])
   cuentas        Cuenta[]  
-   
+
   @@map("tipos_cuenta")
 }
 
@@ -106,7 +115,15 @@ model Cuenta {
 
   usuarioId      Int
   usuario        Usuario     @relation(fields: [usuarioId], references: [id])
+  
+  transacciones           Transaccion[] @relation("cuentaOrigen")
+  transferenciasRecibidas Transaccion[] @relation("cuentaDestino")
 
   @@map("cuentas")
 }
 
+enum ComponenteDeuda {
+  CAPITAL
+  INTERES
+
+}
