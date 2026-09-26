@@ -22,6 +22,19 @@ export class AuthService {
           nombre: datos.nombre,
           email: datos.email,
           contrasenaHash,
+          // 1. Escritura anidada: creamos los tipos de cuenta por defecto
+          // vinculados automáticamente a este nuevo usuarioId.
+          tiposCuenta: {
+            create: [
+              { nombre: 'Efectivo', comportamiento: 'NORMAL' },
+              { nombre: 'Banco', comportamiento: 'NORMAL' },
+              { nombre: 'Tarjeta de Débito', comportamiento: 'NORMAL' },
+              { nombre: 'Ahorro', comportamiento: 'NORMAL' },
+              { nombre: 'Inversión', comportamiento: 'NORMAL' },
+              { nombre: 'Tarjeta de Crédito', comportamiento: 'TARJETA_CREDITO' },
+              { nombre: 'Deuda', comportamiento: 'DEUDA' },
+            ],
+          },
         },
       });
 
