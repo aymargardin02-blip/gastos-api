@@ -9,7 +9,6 @@ import { ActualizarTransaccionDto } from './dto/actualizar-transaccion.dto.js';
 import { FiltrarTransaccionesDto } from './dto/filtrar-transacciones.dto.js';
 import { Prisma } from '../generated/prisma/client.js';
 import {
-  ComponenteDeuda,
   ComportamientoCuenta,
   TipoMovimiento,
 } from '../generated/prisma/enums.js';
@@ -240,11 +239,18 @@ export class TransaccionesService {
     const componenteDeudaFinal =
       datos.componenteDeuda ?? actual.componenteDeuda;
 
-    await this.validarCategoria(
-      usuarioId,
-      categoriaIdFinal,
-      tipoFinal,
-    );
+    // Solo revalidamos categoría si el PATCH toca tipo o categoría.
+    // Si no, el estado actual ya era válido y ahorramos una query.
+    if (
+      datos.tipo !== undefined ||
+      datos.categoriaId !== undefined
+    ) {
+      await this.validarCategoria(
+        usuarioId,
+        categoriaIdFinal,
+        tipoFinal,
+      );
+    }
 
     await this.validarCuentas(usuarioId, {
       tipo: tipoFinal,
@@ -253,11 +259,11 @@ export class TransaccionesService {
       fecha: datos.fecha ?? actual.fecha.toISOString(),
       categoriaId: categoriaIdFinal ?? undefined,
       cuentaId: cuentaIdFinal,
+      // Normalizamos null → undefined: validarCuentas usa `!== undefined`
+      // para distinguir "campo no enviado" de "campo enviado con valor".
+      // Un `null` que viene de la BD significa "no aplica", no "enviado".
       cuentaDestinoId: cuentaDestinoIdFinal ?? undefined,
-      componenteDeuda:
-        componenteDeudaFinal as
-          | ComponenteDeuda
-          | undefined,
+      componenteDeuda: componenteDeudaFinal ?? undefined,
     });
 
     return this.prisma.transaccion.update({

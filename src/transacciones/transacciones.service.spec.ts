@@ -7,9 +7,19 @@ describe('TransaccionesService', () => {
   let service: TransaccionesService;
   let prismaMock: any;
 
+  const cuentaNormal = {
+    id: 1,
+    usuarioId: 1,
+    archivada: false,
+    tipoCuenta: { comportamiento: 'NORMAL' },
+  };
+
   beforeEach(() => {
     prismaMock = {
       categoria: {
+        findFirst: vi.fn(),
+      },
+      cuenta: {
         findFirst: vi.fn(),
       },
       transaccion: {
@@ -32,6 +42,7 @@ describe('TransaccionesService', () => {
           monto: 20,
           fecha: '2026-09-19',
           categoriaId: 99,
+          cuentaId: 1,
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -49,6 +60,7 @@ describe('TransaccionesService', () => {
           monto: 20,
           fecha: '2026-09-19',
           categoriaId: 2,
+          cuentaId: 1,
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -59,6 +71,8 @@ describe('TransaccionesService', () => {
         tipo: TipoMovimiento.GASTO,
         usuarioId: 1,
       });
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+
       const transaccionCreada = {
         id: 10,
         tipo: TipoMovimiento.GASTO,
@@ -66,6 +80,7 @@ describe('TransaccionesService', () => {
         descripcion: 'Almuerzo',
         fecha: new Date('2026-09-19'),
         categoriaId: 2,
+        cuentaId: 1,
         usuarioId: 1,
       };
       prismaMock.transaccion.create.mockResolvedValue(transaccionCreada);
@@ -76,6 +91,7 @@ describe('TransaccionesService', () => {
         descripcion: 'Almuerzo',
         fecha: '2026-09-19',
         categoriaId: 2,
+        cuentaId: 1,
       });
 
       expect(resultado).toEqual(transaccionCreada);
@@ -86,6 +102,7 @@ describe('TransaccionesService', () => {
           descripcion: 'Almuerzo',
           fecha: new Date('2026-09-19'),
           categoriaId: 2,
+          cuentaId: 1,
           usuarioId: 1,
         },
       });
@@ -107,15 +124,23 @@ describe('TransaccionesService', () => {
       prismaMock.transaccion.findFirst.mockResolvedValue({
         id: 5,
         tipo: TipoMovimiento.GASTO,
-        monto: 20,
+        monto: new Prisma.Decimal(20),
+        descripcion: null,
+        fecha: new Date('2026-09-19'),
         categoriaId: 2,
+        cuentaId: 1,
+        cuentaDestinoId: null,
+        componenteDeuda: null,
         usuarioId: 1,
       });
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+
       const transaccionActualizada = {
         id: 5,
         tipo: TipoMovimiento.GASTO,
         monto: 15,
         categoriaId: 2,
+        cuentaId: 1,
         usuarioId: 1,
       };
       prismaMock.transaccion.update.mockResolvedValue(transaccionActualizada);
@@ -134,8 +159,13 @@ describe('TransaccionesService', () => {
       prismaMock.transaccion.findFirst.mockResolvedValue({
         id: 5,
         tipo: TipoMovimiento.GASTO,
-        monto: 20,
+        monto: new Prisma.Decimal(20),
+        descripcion: null,
+        fecha: new Date('2026-09-19'),
         categoriaId: 2,
+        cuentaId: 1,
+        cuentaDestinoId: null,
+        componenteDeuda: null,
         usuarioId: 1,
       });
       prismaMock.categoria.findFirst.mockResolvedValue({
@@ -143,6 +173,7 @@ describe('TransaccionesService', () => {
         tipo: TipoMovimiento.INGRESO,
         usuarioId: 1,
       });
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
       prismaMock.transaccion.update.mockResolvedValue({});
 
       await service.actualizar(1, 5, {
@@ -163,6 +194,7 @@ describe('TransaccionesService', () => {
         tipo: TipoMovimiento.GASTO,
         monto: 20,
         categoriaId: 2,
+        cuentaId: 1,
         usuarioId: 1,
       };
       prismaMock.transaccion.delete.mockResolvedValue(transaccionBorrada);
