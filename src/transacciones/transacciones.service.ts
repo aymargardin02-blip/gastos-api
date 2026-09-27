@@ -148,13 +148,17 @@ export class TransaccionesService {
   }
 
   async crear(usuarioId: number, datos: CrearTransaccionDto) {
+    // Primero validamos las cuentas: así, si es una transferencia mal
+    // formada (con categoría, o sin cuentaDestino, o con componenteDeuda
+    // indebido), obtenemos el error específico correcto sin consultar la
+    // base de datos por una categoría que de todos modos no aplica.
+    await this.validarCuentas(usuarioId, datos);
+
     await this.validarCategoria(
       usuarioId,
       datos.categoriaId,
       datos.tipo,
     );
-
-    await this.validarCuentas(usuarioId, datos);
 
     return this.prisma.transaccion.create({
       data: {

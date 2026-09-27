@@ -14,6 +14,29 @@ describe('TransaccionesService', () => {
     tipoCuenta: { comportamiento: 'NORMAL' },
   };
 
+  const cuentaDestinoNormal = {
+    id: 2,
+    usuarioId: 1,
+    archivada: false,
+    tipoCuenta: { comportamiento: 'NORMAL' },
+  };
+
+  const cuentaDeudaConInteres = {
+    id: 3,
+    usuarioId: 1,
+    archivada: false,
+    tieneInteres: true,
+    tipoCuenta: { comportamiento: 'DEUDA' },
+  };
+
+  const cuentaDeudaSinInteres = {
+    id: 4,
+    usuarioId: 1,
+    archivada: false,
+    tieneInteres: false,
+    tipoCuenta: { comportamiento: 'DEUDA' },
+  };
+
   beforeEach(() => {
     prismaMock = {
       categoria: {
@@ -47,23 +70,24 @@ describe('TransaccionesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('lanza BadRequestException si el tipo no coincide con el de la categoria', async () => {
-      prismaMock.categoria.findFirst.mockResolvedValue({
-        id: 2,
-        tipo: TipoMovimiento.INGRESO,
-        usuarioId: 1,
-      });
+it('lanza BadRequestException si el tipo no coincide con el de la categoria', async () => {
+  prismaMock.categoria.findFirst.mockResolvedValue({
+    id: 2,
+    tipo: TipoMovimiento.INGRESO,
+    usuarioId: 1,
+  });
+  prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
 
-      await expect(
-        service.crear(1, {
-          tipo: TipoMovimiento.GASTO,
-          monto: 20,
-          fecha: '2026-09-19',
-          categoriaId: 2,
-          cuentaId: 1,
-        }),
-      ).rejects.toThrow(BadRequestException);
-    });
+  await expect(
+    service.crear(1, {
+      tipo: TipoMovimiento.GASTO,
+      monto: 20,
+      fecha: '2026-09-19',
+      categoriaId: 2,
+      cuentaId: 1,
+    }),
+  ).rejects.toThrow(BadRequestException);
+});
 
     it('crea la transaccion cuando la categoria existe y el tipo coincide', async () => {
       prismaMock.categoria.findFirst.mockResolvedValue({
@@ -105,6 +129,189 @@ describe('TransaccionesService', () => {
           cuentaId: 1,
           usuarioId: 1,
         },
+      });
+    });
+
+    it('lanza NotFoundException si la cuenta de origen no existe o no es del usuario', async () => {
+      prismaMock.categoria.findFirst.mockResolvedValue({
+        id: 2,
+        tipo: TipoMovimiento.GASTO,
+        usuarioId: 1,
+      });
+      prismaMock.cuenta.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.crear(1, {
+          tipo: TipoMovimiento.GASTO,
+          monto: 20,
+          fecha: '2026-09-19',
+          categoriaId: 2,
+          cuentaId: 99,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    describe('transferencias', () => {
+      it('lanza BadRequestException si no se envia cuentaDestinoId', async () => {
+        prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('lanza BadRequestException si cuentaOrigen y cuentaDestino son la misma', async () => {
+        prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+            cuentaDestinoId: 1,
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('lanza BadRequestException si se envia categoriaId en una transferencia', async () => {
+        prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+            cuentaDestinoId: 2,
+            categoriaId: 2,
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('lanza BadRequestException si el destino es DEUDA con interes y falta componenteDeuda', async () => {
+        prismaMock.cuenta.findFirst.mockImplementation(
+          ({ where }: { where: { id: number } }) =>
+            Promise.resolve(
+              where.id === 3 ? cuentaDeudaConInteres : cuentaNormal,
+            ),
+        );
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+            cuentaDestinoId: 3,
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('lanza BadRequestException si el destino es DEUDA sin interes y se envia componenteDeuda', async () => {
+        prismaMock.cuenta.findFirst.mockImplementation(
+          ({ where }: { where: { id: number } }) =>
+            Promise.resolve(
+              where.id === 4 ? cuentaDeudaSinInteres : cuentaNormal,
+            ),
+        );
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+            cuentaDestinoId: 4,
+            componenteDeuda: 'CAPITAL',
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('lanza BadRequestException si el destino es NORMAL y se envia componenteDeuda', async () => {
+        prismaMock.cuenta.findFirst.mockImplementation(
+          ({ where }: { where: { id: number } }) =>
+            Promise.resolve(
+              where.id === 2 ? cuentaDestinoNormal : cuentaNormal,
+            ),
+        );
+
+        await expect(
+          service.crear(1, {
+            tipo: TipoMovimiento.TRANSFERENCIA,
+            monto: 50,
+            fecha: '2026-09-19',
+            cuentaId: 1,
+            cuentaDestinoId: 2,
+            componenteDeuda: 'CAPITAL',
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('crea la transferencia cuando el destino es NORMAL y no hay componenteDeuda', async () => {
+        prismaMock.cuenta.findFirst.mockImplementation(
+          ({ where }: { where: { id: number } }) =>
+            Promise.resolve(
+              where.id === 2 ? cuentaDestinoNormal : cuentaNormal,
+            ),
+        );
+        const transferenciaCreada = {
+          id: 11,
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: 50,
+          fecha: new Date('2026-09-19'),
+          cuentaId: 1,
+          cuentaDestinoId: 2,
+          usuarioId: 1,
+        };
+        prismaMock.transaccion.create.mockResolvedValue(transferenciaCreada);
+
+        const resultado = await service.crear(1, {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: 50,
+          fecha: '2026-09-19',
+          cuentaId: 1,
+          cuentaDestinoId: 2,
+        });
+
+        expect(resultado).toEqual(transferenciaCreada);
+        expect(prismaMock.categoria.findFirst).not.toHaveBeenCalled();
+      });
+
+      it('crea la transferencia cuando el destino es DEUDA con interes y se envia componenteDeuda', async () => {
+        prismaMock.cuenta.findFirst.mockImplementation(
+          ({ where }: { where: { id: number } }) =>
+            Promise.resolve(
+              where.id === 3 ? cuentaDeudaConInteres : cuentaNormal,
+            ),
+        );
+        const transferenciaCreada = {
+          id: 12,
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: 50,
+          fecha: new Date('2026-09-19'),
+          cuentaId: 1,
+          cuentaDestinoId: 3,
+          componenteDeuda: 'CAPITAL',
+          usuarioId: 1,
+        };
+        prismaMock.transaccion.create.mockResolvedValue(transferenciaCreada);
+
+        const resultado = await service.crear(1, {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: 50,
+          fecha: '2026-09-19',
+          cuentaId: 1,
+          cuentaDestinoId: 3,
+          componenteDeuda: 'CAPITAL',
+        });
+
+        expect(resultado).toEqual(transferenciaCreada);
       });
     });
   });
