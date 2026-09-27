@@ -4,7 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CuentasService } from './cuentas.service.js';
-import { ComportamientoCuenta } from '../generated/prisma/enums.js';
+import {
+  ComportamientoCuenta,
+  TipoMovimiento,
+} from '../generated/prisma/enums.js';
 import { Prisma } from '../generated/prisma/client.js';
 
 describe('CuentasService', () => {
@@ -49,6 +52,9 @@ describe('CuentasService', () => {
       },
       tipoCuenta: {
         findFirst: vi.fn(),
+      },
+      transaccion: {
+        findMany: vi.fn(),
       },
     };
     service = new CuentasService(prismaMock);
@@ -444,6 +450,166 @@ describe('CuentasService', () => {
         where: { id: 100 },
         data: { archivada: false },
       });
+    });
+  });
+    describe('obtenerSaldo', () => {
+    const cuentaNormal = {
+      id: 100,
+      usuarioId: 1,
+      montoOriginal: null,
+      tipoCuenta: { comportamiento: ComportamientoCuenta.NORMAL },
+    };
+
+    const cuentaTarjeta = {
+      id: 200,
+      usuarioId: 1,
+      montoOriginal: null,
+      tipoCuenta: { comportamiento: ComportamientoCuenta.TARJETA_CREDITO },
+    };
+
+    const cuentaDeuda = {
+      id: 300,
+      usuarioId: 1,
+      montoOriginal: new Prisma.Decimal(1000),
+      tipoCuenta: { comportamiento: ComportamientoCuenta.DEUDA },
+    };
+
+    it('NORMAL: suma ingresos y resta gastos', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+      prismaMock.transaccion.findMany.mockResolvedValue([
+        {
+          tipo: TipoMovimiento.INGRESO,
+          monto: new Prisma.Decimal(500),
+          cuentaId: 100,
+          cuentaDestinoId: null,
+          componenteDeuda: null,
+        },
+        {
+          tipo: TipoMovimiento.GASTO,
+          monto: new Prisma.Decimal(20),
+          cuentaId: 100,
+          cuentaDestinoId: null,
+          componenteDeuda: null,
+        },
+      ]);
+
+      const resultado = await service.obtenerSaldo(100, 1);
+
+      expect(resultado).toEqual({
+        cuentaId: 100,
+        saldo: 480,
+        comportamiento: ComportamientoCuenta.NORMAL,
+      });
+    });
+
+    it('NORMAL: transferencia saliente resta y entrante suma', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+      prismaMock.transaccion.findMany.mockResolvedValue([
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(30),
+          cuentaId: 100,
+          cuentaDestinoId: 500,
+          componenteDeuda: null,
+        },
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(80),
+          cuentaId: 600,
+          cuentaDestinoId: 100,
+          componenteDeuda: null,
+        },
+      ]);
+
+      const resultado = await service.obtenerSaldo(100, 1);
+
+      expect(resultado.saldo).toBe(50);
+    });
+
+    it('TARJETA_CREDITO: gastos suman y pagos recibidos restan', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaTarjeta);
+      prismaMock.transaccion.findMany.mockResolvedValue([
+        {
+          tipo: TipoMovimiento.GASTO,
+          monto: new Prisma.Decimal(150),
+          cuentaId: 200,
+          cuentaDestinoId: null,
+          componenteDeuda: null,
+        },
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(50),
+          cuentaId: 100,
+          cuentaDestinoId: 200,
+          componenteDeuda: null,
+        },
+      ]);
+
+      const resultado = await service.obtenerSaldo(200, 1);
+
+      expect(resultado).toEqual({
+        cuentaId: 200,
+        saldo: 100,
+        comportamiento: ComportamientoCuenta.TARJETA_CREDITO,
+      });
+    });
+
+    it('DEUDA sin interes: todos los pagos restan del montoOriginal', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaDeuda);
+      prismaMock.transaccion.findMany.mockResolvedValue([
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(200),
+          cuentaId: 100,
+          cuentaDestinoId: 300,
+          componenteDeuda: null,
+        },
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(100),
+          cuentaId: 100,
+          cuentaDestinoId: 300,
+          componenteDeuda: 'CAPITAL',
+        },
+      ]);
+
+      const resultado = await service.obtenerSaldo(300, 1);
+
+      expect(resultado.saldo).toBe(700);
+    });
+
+    it('DEUDA con interes: pagos INTERES no reducen el capital', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaDeuda);
+      prismaMock.transaccion.findMany.mockResolvedValue([
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(200),
+          cuentaId: 100,
+          cuentaDestinoId: 300,
+          componenteDeuda: 'CAPITAL',
+        },
+        {
+          tipo: TipoMovimiento.TRANSFERENCIA,
+          monto: new Prisma.Decimal(50),
+          cuentaId: 100,
+          cuentaDestinoId: 300,
+          componenteDeuda: 'INTERES',
+        },
+      ]);
+
+      const resultado = await service.obtenerSaldo(300, 1);
+
+      expect(resultado.saldo).toBe(800);
+    });
+
+    it('lanza NotFoundException si la cuenta no existe o no es del usuario', async () => {
+      prismaMock.cuenta.findFirst.mockResolvedValue(null);
+
+      await expect(service.obtenerSaldo(999, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(prismaMock.transaccion.findMany).not.toHaveBeenCalled();
     });
   });
 });
