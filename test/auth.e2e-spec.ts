@@ -23,6 +23,10 @@ describe('Auth (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Borramos primero los tipos de cuenta para respetar la FK.
+    await prisma.tipoCuenta.deleteMany({
+      where: { usuario: { email: emailPrueba } },
+    });
     await prisma.usuario.deleteMany({ where: { email: emailPrueba } });
     await app.close();
   });
