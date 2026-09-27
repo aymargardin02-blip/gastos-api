@@ -55,7 +55,7 @@ export class CuentasController {
     @Req() req: RequestConUsuario,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.cuentasService.obtenerSaldo(req.user.id, id);
+    return this.cuentasService.obtenerSaldo(id, req.user.id);
   }
 
   @Patch(':id')
