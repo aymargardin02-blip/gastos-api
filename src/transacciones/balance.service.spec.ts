@@ -55,10 +55,27 @@ describe('BalanceService', () => {
       by: ['tipo'],
       where: {
         usuarioId: 1,
+        tipo: { not: TipoMovimiento.TRANSFERENCIA },
         fecha: {
           gte: new Date('2026-09-01'),
           lte: new Date('2026-09-30'),
         },
+      },
+      _sum: { monto: true },
+    });
+  });
+
+  it('excluye las transferencias del calculo del balance', async () => {
+    prismaMock.transaccion.groupBy.mockResolvedValue([]);
+
+    await service.obtener(1, {});
+
+    expect(prismaMock.transaccion.groupBy).toHaveBeenCalledWith({
+      by: ['tipo'],
+      where: {
+        usuarioId: 1,
+        tipo: { not: TipoMovimiento.TRANSFERENCIA },
+        fecha: undefined,
       },
       _sum: { monto: true },
     });

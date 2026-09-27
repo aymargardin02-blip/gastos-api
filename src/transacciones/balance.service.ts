@@ -17,7 +17,13 @@ export class BalanceService {
 
     const grupos = await this.prisma.transaccion.groupBy({
       by: ['tipo'],
-      where: { usuarioId, fecha: desde || hasta ? fecha : undefined },
+      where: {
+        usuarioId,
+        // Las transferencias son movimientos internos entre cuentas
+        // del mismo usuario: no son ni ingreso ni gasto.
+        tipo: { not: TipoMovimiento.TRANSFERENCIA },
+        fecha: desde || hasta ? fecha : undefined,
+      },
       _sum: { monto: true },
     });
 
