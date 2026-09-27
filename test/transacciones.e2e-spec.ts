@@ -17,6 +17,8 @@ describe('Transacciones (e2e)', () => {
   let tokenBeto: string;
   let categoriaAnaId: number;
   let categoriaBetoId: number;
+  let cuentaAnaId: number;
+  let cuentaBetoId: number;
   let transaccionAnaId: number;
 
   beforeAll(async () => {
@@ -51,6 +53,26 @@ describe('Transacciones (e2e)', () => {
       .send({ email: emailBeto, contrasena: 'clave12345' });
     tokenBeto = loginBeto.body.access_token;
 
+    // Necesitamos el id de un tipo NORMAL (Efectivo se crea por defecto).
+    const tipoEfectivoAna = await prisma.tipoCuenta.findFirstOrThrow({
+      where: { nombre: 'Efectivo', usuario: { email: emailAna } },
+    });
+    const tipoEfectivoBeto = await prisma.tipoCuenta.findFirstOrThrow({
+      where: { nombre: 'Efectivo', usuario: { email: emailBeto } },
+    });
+
+    const cuentaAna = await request(app.getHttpServer())
+      .post('/cuentas')
+      .set('Authorization', `Bearer ${tokenAna}`)
+      .send({ nombre: 'Efectivo de Ana', tipoCuentaId: tipoEfectivoAna.id });
+    cuentaAnaId = cuentaAna.body.id;
+
+    const cuentaBeto = await request(app.getHttpServer())
+      .post('/cuentas')
+      .set('Authorization', `Bearer ${tokenBeto}`)
+      .send({ nombre: 'Efectivo de Beto', tipoCuentaId: tipoEfectivoBeto.id });
+    cuentaBetoId = cuentaBeto.body.id;
+
     const categoriaAna = await request(app.getHttpServer())
       .post('/categorias')
       .set('Authorization', `Bearer ${tokenAna}`)
@@ -65,14 +87,18 @@ describe('Transacciones (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Borramos en orden inverso a las dependencias para respetar las FKs.
     await prisma.transaccion.deleteMany({
-      where: { usuarioId: { in: [] } },
-    }).catch(() => {});
-    await prisma.transaccion.deleteMany({
-      where: { categoriaId: { in: [categoriaAnaId, categoriaBetoId] } },
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
+    });
+    await prisma.cuenta.deleteMany({
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
+    });
+    await prisma.tipoCuenta.deleteMany({
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
     await prisma.categoria.deleteMany({
-      where: { id: { in: [categoriaAnaId, categoriaBetoId] } },
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
     await prisma.usuario.deleteMany({
       where: { email: { in: [emailAna, emailBeto] } },
@@ -88,6 +114,7 @@ describe('Transacciones (e2e)', () => {
         monto: 20,
         fecha: '2026-09-19',
         categoriaId: categoriaAnaId,
+        cuentaId: cuentaAnaId,
       })
       .expect(401);
   });
@@ -101,6 +128,7 @@ describe('Transacciones (e2e)', () => {
         monto: 20,
         fecha: '2026-09-19',
         categoriaId: categoriaAnaId,
+        cuentaId: cuentaAnaId,
       })
       .expect(400);
   });
@@ -114,6 +142,7 @@ describe('Transacciones (e2e)', () => {
         monto: 20,
         fecha: '2026-09-19',
         categoriaId: categoriaBetoId,
+        cuentaId: cuentaAnaId,
       })
       .expect(404);
   });
@@ -128,6 +157,7 @@ describe('Transacciones (e2e)', () => {
         descripcion: 'Almuerzo E2E',
         fecha: '2026-09-19',
         categoriaId: categoriaAnaId,
+        cuentaId: cuentaAnaId,
       })
       .expect(201);
 
