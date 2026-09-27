@@ -1,4 +1,12 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 import { TipoMovimiento } from '../../generated/prisma/enums.js';
 
 export class CrearTransaccionDto {
@@ -16,7 +24,21 @@ export class CrearTransaccionDto {
   @IsDateString()
   fecha: string;
 
+  @IsOptional()
   @IsInt()
   @IsPositive()
-  categoriaId: number;
+  categoriaId?: number;
+
+  @IsInt()
+  @IsPositive()
+  cuentaId: number;
+
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  cuentaDestinoId?: number;
+
+  @IsOptional()
+  @IsEnum(['CAPITAL', 'INTERES'])
+  componenteDeuda?: 'CAPITAL' | 'INTERES';
 }
