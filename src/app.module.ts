@@ -8,8 +8,8 @@ import { PrismaModule } from './prisma.module.js';
 import { CategoriasModule } from './categorias/categorias.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TransaccionesModule } from './transacciones/transacciones.module.js';
-// 1. Importamos el nuevo módulo
 import { TiposCuentaModule } from './tipos-cuenta/tipos-cuenta.module.js';
+import { CuentasModule } from './cuentas/cuentas.module.js';
 
 @Module({
   imports: [
@@ -26,8 +26,8 @@ import { TiposCuentaModule } from './tipos-cuenta/tipos-cuenta.module.js';
     CategoriasModule,
     AuthModule,
     TransaccionesModule,
-    // 2. Lo registramos aquí para que NestJS lo inicie
     TiposCuentaModule,
+    CuentasModule,
   ],
   controllers: [AppController],
   providers: [
