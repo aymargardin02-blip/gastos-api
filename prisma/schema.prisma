@@ -23,6 +23,8 @@ model Usuario {
   transacciones  Transaccion[]
   tiposCuenta    TipoCuenta[]
   cuentas        Cuenta[]
+  consentimientos Consentimiento[]
+  
 
   @@map("usuarios")
 }
@@ -121,3 +123,22 @@ enum ComponenteDeuda {
   CAPITAL
   INTERES
 }
+
+enum TipoConsentimiento {
+  TERMINOS
+  PRIVACIDAD
+}
+
+model Consentimiento {
+  id          Int               @id @default(autoincrement())
+  usuarioId   Int
+  usuario     Usuario           @relation(fields: [usuarioId], references: [id])
+  tipo        TipoConsentimiento
+  version     String
+  aceptadoEn  DateTime          @default(now())
+
+  @@unique([usuarioId, tipo, version])
+  @@index([usuarioId])
+  @@map("consentimientos")
+}
+
