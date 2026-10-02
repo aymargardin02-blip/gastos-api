@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { TransaccionesModule } from './transacciones/transacciones.module.js';
 import { TiposCuentaModule } from './tipos-cuenta/tipos-cuenta.module.js';
 import { CuentasModule } from './cuentas/cuentas.module.js';
+import { PerfilModule } from './perfil/perfil.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CuentasModule } from './cuentas/cuentas.module.js';
     TransaccionesModule,
     TiposCuentaModule,
     CuentasModule,
+    PerfilModule,
   ],
   controllers: [AppController],
   providers: [
