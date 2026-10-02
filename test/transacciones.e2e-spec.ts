@@ -1,12 +1,11 @@
 ﻿import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/prisma.service.js';
 
 describe('Transacciones (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   let prisma: PrismaService;
 
   const sufijo = Date.now();
@@ -36,27 +35,35 @@ describe('Transacciones (e2e)', () => {
       nombre: 'Ana E2E',
       email: emailAna,
       contrasena: 'clave12345',
+      aceptaTerminos: true,
+      aceptaPrivacidad: true,
     });
+
     await request(app.getHttpServer()).post('/auth/register').send({
       nombre: 'Beto E2E',
       email: emailBeto,
       contrasena: 'clave12345',
+      aceptaTerminos: true,
+      aceptaPrivacidad: true,
     });
 
     const loginAna = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: emailAna, contrasena: 'clave12345' });
+
     tokenAna = loginAna.body.access_token;
 
     const loginBeto = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: emailBeto, contrasena: 'clave12345' });
+
     tokenBeto = loginBeto.body.access_token;
 
     // Necesitamos el id de un tipo NORMAL (Efectivo se crea por defecto).
     const tipoEfectivoAna = await prisma.tipoCuenta.findFirstOrThrow({
       where: { nombre: 'Efectivo', usuario: { email: emailAna } },
     });
+
     const tipoEfectivoBeto = await prisma.tipoCuenta.findFirstOrThrow({
       where: { nombre: 'Efectivo', usuario: { email: emailBeto } },
     });
@@ -64,25 +71,35 @@ describe('Transacciones (e2e)', () => {
     const cuentaAna = await request(app.getHttpServer())
       .post('/cuentas')
       .set('Authorization', `Bearer ${tokenAna}`)
-      .send({ nombre: 'Efectivo de Ana', tipoCuentaId: tipoEfectivoAna.id });
+      .send({
+        nombre: 'Efectivo de Ana',
+        tipoCuentaId: tipoEfectivoAna.id,
+      });
+
     cuentaAnaId = cuentaAna.body.id;
 
     const cuentaBeto = await request(app.getHttpServer())
       .post('/cuentas')
       .set('Authorization', `Bearer ${tokenBeto}`)
-      .send({ nombre: 'Efectivo de Beto', tipoCuentaId: tipoEfectivoBeto.id });
+      .send({
+        nombre: 'Efectivo de Beto',
+        tipoCuentaId: tipoEfectivoBeto.id,
+      });
+
     cuentaBetoId = cuentaBeto.body.id;
 
     const categoriaAna = await request(app.getHttpServer())
       .post('/categorias')
       .set('Authorization', `Bearer ${tokenAna}`)
       .send({ nombre: 'Gastos varios', tipo: 'GASTO' });
+
     categoriaAnaId = categoriaAna.body.id;
 
     const categoriaBeto = await request(app.getHttpServer())
       .post('/categorias')
       .set('Authorization', `Bearer ${tokenBeto}`)
       .send({ nombre: 'Gastos de Beto', tipo: 'GASTO' });
+
     categoriaBetoId = categoriaBeto.body.id;
   });
 
@@ -91,18 +108,31 @@ describe('Transacciones (e2e)', () => {
     await prisma.transaccion.deleteMany({
       where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
+
     await prisma.cuenta.deleteMany({
       where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
+
     await prisma.tipoCuenta.deleteMany({
       where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
+
     await prisma.categoria.deleteMany({
       where: { usuario: { email: { in: [emailAna, emailBeto] } } },
     });
+
+    await prisma.preferenciaPrivacidad.deleteMany({
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
+    });
+
+    await prisma.consentimiento.deleteMany({
+      where: { usuario: { email: { in: [emailAna, emailBeto] } } },
+    });
+
     await prisma.usuario.deleteMany({
       where: { email: { in: [emailAna, emailBeto] } },
     });
+
     await app.close();
   });
 
@@ -162,6 +192,7 @@ describe('Transacciones (e2e)', () => {
       .expect(201);
 
     transaccionAnaId = respuesta.body.id;
+
     expect(respuesta.body.usuarioId).toBeDefined();
   });
 

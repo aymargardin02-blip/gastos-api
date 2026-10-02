@@ -61,6 +61,14 @@ export class AuthService {
               },
             ],
           },
+
+          preferenciaPrivacidad: {
+            create: {
+              participarRanking: true,
+              mostrarRacha: true,
+              perfilPublico: true,
+            },
+          },
         },
       });
 

@@ -1,12 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/prisma.service.js';
 
 describe('Cuentas y transferencias (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
   let prisma: PrismaService;
 
   const sufijo = Date.now();
@@ -34,11 +33,14 @@ describe('Cuentas y transferencias (e2e)', () => {
       nombre: 'Usuario Cuentas E2E',
       email,
       contrasena: 'clave12345',
+      aceptaTerminos: true,
+      aceptaPrivacidad: true,
     });
 
     const login = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email, contrasena: 'clave12345' });
+
     token = login.body.access_token;
 
     const tipoEfectivo = await prisma.tipoCuenta.findFirstOrThrow({
@@ -55,6 +57,7 @@ describe('Cuentas y transferencias (e2e)', () => {
       .post('/categorias')
       .set('Authorization', `Bearer ${token}`)
       .send({ nombre: 'Ingresos varios E2E', tipo: 'INGRESO' });
+
     categoriaIngresoId = categoria.body.id;
   });
 
@@ -62,16 +65,31 @@ describe('Cuentas y transferencias (e2e)', () => {
     await prisma.transaccion.deleteMany({
       where: { usuario: { email } },
     });
+
     await prisma.cuenta.deleteMany({
       where: { usuario: { email } },
     });
+
     await prisma.tipoCuenta.deleteMany({
       where: { usuario: { email } },
     });
+
     await prisma.categoria.deleteMany({
       where: { usuario: { email } },
     });
-    await prisma.usuario.deleteMany({ where: { email } });
+
+    await prisma.preferenciaPrivacidad.deleteMany({
+      where: { usuario: { email } },
+    });
+
+    await prisma.consentimiento.deleteMany({
+      where: { usuario: { email } },
+    });
+
+    await prisma.usuario.deleteMany({
+      where: { email },
+    });
+
     await app.close();
   });
 
@@ -90,6 +108,7 @@ describe('Cuentas y transferencias (e2e)', () => {
       .expect(201);
 
     cuentaOrigenId = respuesta.body.id;
+
     expect(respuesta.body.nombre).toBe('Cuenta origen E2E');
     expect(respuesta.body.archivada).toBe(false);
   });
@@ -102,6 +121,7 @@ describe('Cuentas y transferencias (e2e)', () => {
       .expect(201);
 
     cuentaDestinoId = respuesta.body.id;
+
     expect(respuesta.body.nombre).toBe('Cuenta destino E2E');
   });
 
@@ -221,3 +241,4 @@ describe('Cuentas y transferencias (e2e)', () => {
       .expect(400);
   });
 });
+
