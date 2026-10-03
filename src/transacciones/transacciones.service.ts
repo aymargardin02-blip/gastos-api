@@ -12,10 +12,14 @@ import {
   ComportamientoCuenta,
   TipoMovimiento,
 } from '../generated/prisma/enums.js';
+import { RachasService } from '../rachas/rachas.service.js';
 
 @Injectable()
 export class TransaccionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rachasService: RachasService,
+  ) {}
 
   private async validarCategoria(
     usuarioId: number,
@@ -160,13 +164,18 @@ export class TransaccionesService {
       datos.tipo,
     );
 
-    return this.prisma.transaccion.create({
+    const transaccion = await this.prisma.transaccion.create({
       data: {
         ...datos,
         fecha: new Date(datos.fecha),
+        registradaEn: new Date(),
         usuarioId,
       },
     });
+
+    await this.rachasService.recalcular(usuarioId);
+
+    return transaccion;
   }
 
   async listar(
@@ -286,9 +295,13 @@ export class TransaccionesService {
 
   async eliminar(usuarioId: number, id: number) {
     try {
-      return await this.prisma.transaccion.delete({
+      const transaccion = await this.prisma.transaccion.delete({
         where: { id, usuarioId },
       });
+
+      await this.rachasService.recalcular(usuarioId);
+
+      return transaccion;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

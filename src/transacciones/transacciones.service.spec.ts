@@ -6,6 +6,7 @@ import { Prisma } from '../generated/prisma/client.js';
 describe('TransaccionesService', () => {
   let service: TransaccionesService;
   let prismaMock: any;
+  let rachasMock: any;
 
   const cuentaNormal = {
     id: 1,
@@ -52,7 +53,15 @@ describe('TransaccionesService', () => {
         delete: vi.fn(),
       },
     };
-    service = new TransaccionesService(prismaMock);
+
+    rachasMock = {
+      recalcular: vi.fn().mockResolvedValue(undefined),
+    };
+
+    service = new TransaccionesService(
+      prismaMock,
+      rachasMock,
+    );
   });
 
   describe('crear', () => {
@@ -70,24 +79,24 @@ describe('TransaccionesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-it('lanza BadRequestException si el tipo no coincide con el de la categoria', async () => {
-  prismaMock.categoria.findFirst.mockResolvedValue({
-    id: 2,
-    tipo: TipoMovimiento.INGRESO,
-    usuarioId: 1,
-  });
-  prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
+    it('lanza BadRequestException si el tipo no coincide con el de la categoria', async () => {
+      prismaMock.categoria.findFirst.mockResolvedValue({
+        id: 2,
+        tipo: TipoMovimiento.INGRESO,
+        usuarioId: 1,
+      });
+      prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
 
-  await expect(
-    service.crear(1, {
-      tipo: TipoMovimiento.GASTO,
-      monto: 20,
-      fecha: '2026-09-19',
-      categoriaId: 2,
-      cuentaId: 1,
-    }),
-  ).rejects.toThrow(BadRequestException);
-});
+      await expect(
+        service.crear(1, {
+          tipo: TipoMovimiento.GASTO,
+          monto: 20,
+          fecha: '2026-09-19',
+          categoriaId: 2,
+          cuentaId: 1,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
 
     it('crea la transaccion cuando la categoria existe y el tipo coincide', async () => {
       prismaMock.categoria.findFirst.mockResolvedValue({
@@ -107,7 +116,9 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         cuentaId: 1,
         usuarioId: 1,
       };
-      prismaMock.transaccion.create.mockResolvedValue(transaccionCreada);
+      prismaMock.transaccion.create.mockResolvedValue(
+        transaccionCreada,
+      );
 
       const resultado = await service.crear(1, {
         tipo: TipoMovimiento.GASTO,
@@ -125,11 +136,13 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
           monto: 20,
           descripcion: 'Almuerzo',
           fecha: new Date('2026-09-19'),
+          registradaEn: expect.any(Date),
           categoriaId: 2,
           cuentaId: 1,
           usuarioId: 1,
         },
       });
+      expect(rachasMock.recalcular).toHaveBeenCalledWith(1);
     });
 
     it('lanza NotFoundException si la cuenta de origen no existe o no es del usuario', async () => {
@@ -198,7 +211,9 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         prismaMock.cuenta.findFirst.mockImplementation(
           ({ where }: { where: { id: number } }) =>
             Promise.resolve(
-              where.id === 3 ? cuentaDeudaConInteres : cuentaNormal,
+              where.id === 3
+                ? cuentaDeudaConInteres
+                : cuentaNormal,
             ),
         );
 
@@ -217,7 +232,9 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         prismaMock.cuenta.findFirst.mockImplementation(
           ({ where }: { where: { id: number } }) =>
             Promise.resolve(
-              where.id === 4 ? cuentaDeudaSinInteres : cuentaNormal,
+              where.id === 4
+                ? cuentaDeudaSinInteres
+                : cuentaNormal,
             ),
         );
 
@@ -237,7 +254,9 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         prismaMock.cuenta.findFirst.mockImplementation(
           ({ where }: { where: { id: number } }) =>
             Promise.resolve(
-              where.id === 2 ? cuentaDestinoNormal : cuentaNormal,
+              where.id === 2
+                ? cuentaDestinoNormal
+                : cuentaNormal,
             ),
         );
 
@@ -257,9 +276,12 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         prismaMock.cuenta.findFirst.mockImplementation(
           ({ where }: { where: { id: number } }) =>
             Promise.resolve(
-              where.id === 2 ? cuentaDestinoNormal : cuentaNormal,
+              where.id === 2
+                ? cuentaDestinoNormal
+                : cuentaNormal,
             ),
         );
+
         const transferenciaCreada = {
           id: 11,
           tipo: TipoMovimiento.TRANSFERENCIA,
@@ -269,7 +291,10 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
           cuentaDestinoId: 2,
           usuarioId: 1,
         };
-        prismaMock.transaccion.create.mockResolvedValue(transferenciaCreada);
+
+        prismaMock.transaccion.create.mockResolvedValue(
+          transferenciaCreada,
+        );
 
         const resultado = await service.crear(1, {
           tipo: TipoMovimiento.TRANSFERENCIA,
@@ -281,15 +306,19 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
 
         expect(resultado).toEqual(transferenciaCreada);
         expect(prismaMock.categoria.findFirst).not.toHaveBeenCalled();
+        expect(rachasMock.recalcular).toHaveBeenCalledWith(1);
       });
 
       it('crea la transferencia cuando el destino es DEUDA con interes y se envia componenteDeuda', async () => {
         prismaMock.cuenta.findFirst.mockImplementation(
           ({ where }: { where: { id: number } }) =>
             Promise.resolve(
-              where.id === 3 ? cuentaDeudaConInteres : cuentaNormal,
+              where.id === 3
+                ? cuentaDeudaConInteres
+                : cuentaNormal,
             ),
         );
+
         const transferenciaCreada = {
           id: 12,
           tipo: TipoMovimiento.TRANSFERENCIA,
@@ -300,7 +329,10 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
           componenteDeuda: 'CAPITAL',
           usuarioId: 1,
         };
-        prismaMock.transaccion.create.mockResolvedValue(transferenciaCreada);
+
+        prismaMock.transaccion.create.mockResolvedValue(
+          transferenciaCreada,
+        );
 
         const resultado = await service.crear(1, {
           tipo: TipoMovimiento.TRANSFERENCIA,
@@ -312,6 +344,7 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         });
 
         expect(resultado).toEqual(transferenciaCreada);
+        expect(rachasMock.recalcular).toHaveBeenCalledWith(1);
       });
     });
   });
@@ -340,6 +373,7 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         componenteDeuda: null,
         usuarioId: 1,
       });
+
       prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
 
       const transaccionActualizada = {
@@ -350,15 +384,25 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         cuentaId: 1,
         usuarioId: 1,
       };
-      prismaMock.transaccion.update.mockResolvedValue(transaccionActualizada);
 
-      const resultado = await service.actualizar(1, 5, { monto: 15 });
+      prismaMock.transaccion.update.mockResolvedValue(
+        transaccionActualizada,
+      );
+
+      const resultado = await service.actualizar(
+        1,
+        5,
+        { monto: 15 },
+      );
 
       expect(resultado).toEqual(transaccionActualizada);
       expect(prismaMock.categoria.findFirst).not.toHaveBeenCalled();
       expect(prismaMock.transaccion.update).toHaveBeenCalledWith({
         where: { id: 5, usuarioId: 1 },
-        data: { monto: 15, fecha: undefined },
+        data: {
+          monto: 15,
+          fecha: undefined,
+        },
       });
     });
 
@@ -375,11 +419,13 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         componenteDeuda: null,
         usuarioId: 1,
       });
+
       prismaMock.categoria.findFirst.mockResolvedValue({
         id: 3,
         tipo: TipoMovimiento.INGRESO,
         usuarioId: 1,
       });
+
       prismaMock.cuenta.findFirst.mockResolvedValue(cuentaNormal);
       prismaMock.transaccion.update.mockResolvedValue({});
 
@@ -388,7 +434,9 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         categoriaId: 3,
       });
 
-      expect(prismaMock.categoria.findFirst).toHaveBeenCalledWith({
+      expect(
+        prismaMock.categoria.findFirst,
+      ).toHaveBeenCalledWith({
         where: { id: 3, usuarioId: 1 },
       });
     });
@@ -404,7 +452,10 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
         cuentaId: 1,
         usuarioId: 1,
       };
-      prismaMock.transaccion.delete.mockResolvedValue(transaccionBorrada);
+
+      prismaMock.transaccion.delete.mockResolvedValue(
+        transaccionBorrada,
+      );
 
       const resultado = await service.eliminar(1, 5);
 
@@ -412,18 +463,30 @@ it('lanza BadRequestException si el tipo no coincide con el de la categoria', as
       expect(prismaMock.transaccion.delete).toHaveBeenCalledWith({
         where: { id: 5, usuarioId: 1 },
       });
+      expect(rachasMock.recalcular).toHaveBeenCalledWith(1);
     });
 
     it('lanza NotFoundException si Prisma no encuentra el registro (P2025)', async () => {
-      const errorPrisma = new Prisma.PrismaClientKnownRequestError(
-        'Registro no encontrado',
-        { code: 'P2025', clientVersion: '7.10.0' },
-      );
-      prismaMock.transaccion.delete.mockRejectedValue(errorPrisma);
+      const errorPrisma =
+        new Prisma.PrismaClientKnownRequestError(
+          'Registro no encontrado',
+          {
+            code: 'P2025',
+            clientVersion: '7.10.0',
+          },
+        );
 
-      await expect(service.eliminar(1, 99)).rejects.toThrow(
-        NotFoundException,
+      prismaMock.transaccion.delete.mockRejectedValue(
+        errorPrisma,
       );
+
+      await expect(
+        service.eliminar(1, 99),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        rachasMock.recalcular,
+      ).not.toHaveBeenCalled();
     });
   });
 });

@@ -26,6 +26,8 @@ model Usuario {
   consentimientos       Consentimiento[]
   perfilSocial          PerfilSocial?
   preferenciaPrivacidad PreferenciaPrivacidad?
+  zonaHoraria           String                 @default("America/Panama")
+  racha                 Racha?
 
   @@map("usuarios")
 }
@@ -48,11 +50,12 @@ model Categoria {
 }
 
 model Transaccion {
-  id          Int            @id @default(autoincrement())
-  tipo        TipoMovimiento
-  monto       Decimal        @db.Decimal(12, 2)
-  descripcion String?
-  fecha       DateTime
+  id           Int            @id @default(autoincrement())
+  tipo         TipoMovimiento
+  monto        Decimal        @db.Decimal(12, 2)
+  descripcion  String?
+  fecha        DateTime
+  registradaEn DateTime?
 
   categoriaId Int?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
@@ -165,4 +168,16 @@ model PreferenciaPrivacidad {
   actualizadoEn     DateTime @updatedAt
 
   @@map("preferencias_privacidad")
+}
+
+model Racha {
+  id                Int       @id @default(autoincrement())
+  usuarioId         Int       @unique
+  usuario           Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rachaActual       Int       @default(0)
+  mejorRacha        Int       @default(0)
+  ultimoDiaRegistro DateTime?
+  actualizadoEn     DateTime  @updatedAt
+
+  @@map("rachas")
 }
